@@ -10,7 +10,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h> 
-#include "packet.c"
+#include "packet.h"
 
 #define BUFSIZE 1024
 
@@ -73,6 +73,8 @@ int main(int argc, char **argv) {
     
     /* print the server's reply */
     buf[sizeof(filename)] = '\n'; 
+
+    //FILE* fp = fopen("received.data", "rb+"); 
 
     while (1)
     {

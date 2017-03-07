@@ -12,7 +12,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include "packet.c"
+#include "packet.h"
 #define BUFSIZE 1024
 
 /*
@@ -118,7 +118,7 @@ int main(int argc, char **argv) {
      * sendto: echo the input back to the client 
      */
 
-    // printf("%s\n\n",buf);
+    printf("%s\n\n",buf);
 
     fp = fopen(buf, "rb");
 
