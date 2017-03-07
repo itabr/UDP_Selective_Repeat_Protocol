@@ -61,15 +61,12 @@ int main(int argc, char **argv) {
     serveraddr.sin_port = htons(portno);
 
     /* get a message from the user */
-    /*
     bzero(buf, BUFSIZE);
-    printf("Please enter msg: ");
-    fgets(buf, BUFSIZE, stdin);
-    */
+    strcpy(buf, filename); 
 
     /* send the message to the server */
-    serverlen = sizeof(serveraddr);
-    n = sendto(sockfd, filename, strlen(filename), 0, &serveraddr, serverlen);
+    serverlen = sizeof(serveraddr); 
+    n = sendto(sockfd, buf, strlen(buf), 0, &serveraddr, serverlen);
     if (n < 0) 
       error("ERROR in sendto");
     
