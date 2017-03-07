@@ -28,14 +28,18 @@ int main(int argc, char **argv) {
     struct hostent *server;
     char *hostname;
     char buf[BUFSIZE];
+    char *filename;
 
     /* check command line arguments */
-    if (argc != 3) {
-       fprintf(stderr,"usage: %s <hostname> <port>\n", argv[0]);
+    if (argc != 4) {
+       fprintf(stderr,"usage: %s <hostname> <port> <filename>\n", argv[0]);
        exit(0);
     }
     hostname = argv[1];
     portno = atoi(argv[2]);
+    filename = argv[3];
+
+    // printf("%s",filename);
 
     /* socket: create the socket */
     sockfd = socket(AF_INET, SOCK_DGRAM, 0);

@@ -38,6 +38,7 @@ int main(int argc, char **argv) {
   /* 
    * check command line arguments 
    */
+
   if (argc != 2) {
     fprintf(stderr, "usage: %s <port>\n", argv[0]);
     exit(1);
@@ -63,6 +64,7 @@ int main(int argc, char **argv) {
   /*
    * build the server's Internet address
    */
+  
   bzero((char *) &serveraddr, sizeof(serveraddr));
   serveraddr.sin_family = AF_INET;
   serveraddr.sin_addr.s_addr = htonl(INADDR_ANY);
@@ -78,12 +80,15 @@ int main(int argc, char **argv) {
   /* 
    * main loop: wait for a datagram, then echo it
    */
+
   clientlen = sizeof(clientaddr);
+
   while (1) {
 
     /*
      * recvfrom: receive a UDP datagram from a client
      */
+
     bzero(buf, BUFSIZE);
     n = recvfrom(sockfd, buf, BUFSIZE, 0,
 		 (struct sockaddr *) &clientaddr, &clientlen);
