@@ -73,17 +73,25 @@ int main(int argc, char **argv) {
     
     /* print the server's reply */
     buf[sizeof(filename)] = '\n'; 
-    n = recvfrom(sockfd, buf, strlen(buf), 0, &serveraddr, &serverlen);
-    if (n < 0) 
-      error("ERROR in recvfrom");
-    printf("Receiving from server: %s", buf);
 
-    bzero(buf, BUFSIZE); 
-    strcpy(buf, "ACK from client"); 
-    n = sendto(sockfd, buf, strlen(buf), 0, &serveraddr, serverlen); 
-    if (n < 0)
-        error("ERROR in sendto"); 
-    printf("Sending ACK to server\n"); 
+    while (1)
+    {
+        n = recvfrom(sockfd, buf, strlen(buf), 0, &serveraddr, &serverlen);
+        if (n < 0) 
+          error("ERROR in recvfrom");
+        if (buf[0] != '\0')
+        {
+            printf("Receiving from server: %s\n", buf);
+
+            bzero(buf, BUFSIZE);
+            strcpy(buf, "ACK from client"); 
+            n = sendto(sockfd, buf, strlen(buf), 0, &serveraddr, serverlen); 
+            if (n < 0)
+                error("ERROR in sendto"); 
+            printf("Sending ACK to server\n"); 
+        }
+        bzero(buf, BUFSIZE); 
+    }
 
     return 0;
 }
