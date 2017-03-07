@@ -71,6 +71,7 @@ int main(int argc, char **argv) {
       error("ERROR in sendto");
     
     /* print the server's reply */
+    buf[sizeof(filename)] = '\n'; 
     n = recvfrom(sockfd, buf, strlen(buf), 0, &serveraddr, &serverlen);
     if (n < 0) 
       error("ERROR in recvfrom");
