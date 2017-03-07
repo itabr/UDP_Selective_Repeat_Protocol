@@ -60,11 +60,10 @@ int main(int argc, char **argv) {
 	  (char *)&serveraddr.sin_addr.s_addr, server->h_length);
     serveraddr.sin_port = htons(portno);
 
-    /* get a message from the user */
     bzero(buf, BUFSIZE);
     strcpy(buf, filename); 
 
-    /* send the message to the server */
+    /* send the filename to the server */
     serverlen = sizeof(serveraddr); 
     n = sendto(sockfd, buf, strlen(buf), 0, &serveraddr, serverlen);
     if (n < 0) 
@@ -75,6 +74,14 @@ int main(int argc, char **argv) {
     n = recvfrom(sockfd, buf, strlen(buf), 0, &serveraddr, &serverlen);
     if (n < 0) 
       error("ERROR in recvfrom");
-    printf("Echo from server: %s", buf);
+    printf("Receiving from server: %s", buf);
+
+    bzero(buf, BUFSIZE); 
+    strcpy(buf, "ACK from client"); 
+    n = sendto(sockfd, buf, strlen(buf), 0, &serveraddr, serverlen); 
+    if (n < 0)
+        error("ERROR in sendto"); 
+    printf("Sending ACK to server\n"); 
+
     return 0;
 }
