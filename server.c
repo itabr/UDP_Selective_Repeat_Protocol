@@ -35,6 +35,9 @@ int main(int argc, char **argv) {
   int optval; /* flag value for setsockopt */
   int n; /* message byte size */
 
+
+  FILE *fp;
+
   /* 
    * check command line arguments 
    */
@@ -48,6 +51,7 @@ int main(int argc, char **argv) {
   /* 
    * socket: create the parent socket 
    */
+
   sockfd = socket(AF_INET, SOCK_DGRAM, 0);
   if (sockfd < 0) 
     error("ERROR opening socket");
@@ -98,6 +102,7 @@ int main(int argc, char **argv) {
     /* 
      * gethostbyaddr: determine who sent the datagram
      */
+
     hostp = gethostbyaddr((const char *)&clientaddr.sin_addr.s_addr, 
 			  sizeof(clientaddr.sin_addr.s_addr), AF_INET);
     if (hostp == NULL)
@@ -112,6 +117,15 @@ int main(int argc, char **argv) {
     /* 
      * sendto: echo the input back to the client 
      */
+
+    // printf("%s\n\n",buf);
+
+    fp = fopen(buf, "rb");
+
+    if (fp == NULL){
+     printf("file not found.\n\n\n\n\n");
+    }
+
     n = sendto(sockfd, buf, strlen(buf), 0, 
 	       (struct sockaddr *) &clientaddr, clientlen);
     if (n < 0) 
