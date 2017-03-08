@@ -12,7 +12,9 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <sys/stat.h>
 #include "packet.h"
+#include <math.h>
 #define BUFSIZE 1024
 
 /*
@@ -21,6 +23,15 @@
 void error(char *msg) {
   perror(msg);
   exit(1);
+}
+
+char calc_checksum(char* data)
+{
+  int checksum = 0; 
+  int size = 1016; 
+  while (size-- != 0)
+    checksum -= *data++; 
+  return checksum; 
 }
 
 int main(int argc, char **argv) {
@@ -34,6 +45,8 @@ int main(int argc, char **argv) {
   char *hostaddrp; /* dotted decimal host addr string */
   int optval; /* flag value for setsockopt */
   int n; /* message byte size */
+
+  int window_size = 5;
 
 
   FILE *fp;
@@ -120,12 +133,50 @@ int main(int argc, char **argv) {
 
     printf("%s\n\n",buf);
 
-    fp = fopen(buf, "rb");
+    fp = fopen(buf, "rb+");
 
     if (fp == NULL){
-     printf("file not found.\n\n\n\n\n");
+     error("file not found.\n\n\n\n\n");
     }
 
+    // get size of the file so we know how much to read 
+   struct stat stats; 
+   stat(buf, &stats); 
+   int file_size = stats.st_size; 
+   printf("file size = %d\n", file_size); 
+
+   int num_packets = ceil((double)file_size / BUFSIZE);  
+   printf("num packets = %d\n", num_packets);
+
+   struct packet* packets = malloc(num_packets * sizeof(struct packet)); 
+
+   int packet_num = 0; 
+ 
+   char data[1016]; 
+   
+   while (!feof(fp)) 
+   {
+      struct packet pack = {1024, packet_num % 30, data, calc_checksum(data)}; 
+      size_t read_length = fread(pack.data, strlen(pack.data) + 1, 1016, fp); 
+      pack.cs = calc_checksum(pack.data); 
+
+      if (read_length == 0)
+      {
+        error("Could not read file.\n\n"); 
+      }  
+
+      *(packets + packet_num) = pack; 
+      packet_num++; 
+   }
+
+   for (int i = 0; i <= num_packets; i++)
+   {
+    printf("len = %d\n", packets[i].len); 
+    printf("seq num = %d\n", packets[i].seq_num); 
+    printf("data = %s\n", packets[i].data); 
+    printf("checksum = %d\n", packets[i].cs);   
+   }
+  
     n = sendto(sockfd, buf, strlen(buf), 0, 
 	       (struct sockaddr *) &clientaddr, clientlen);
     if (n < 0) 
