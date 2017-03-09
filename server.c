@@ -156,9 +156,11 @@ int main(int argc, char **argv) {
    
    while (!feof(fp)) 
    {
-      struct packet pack = {1024, packet_num % 30, data, calc_checksum(data)}; 
+      //struct packet pack = {1024, packet_num % 30, data, calc_checksum(data)}; 
+      struct packet pack = {1024, packet_num % 30, calc_checksum(data), data, 0}; 
       size_t read_length = fread(pack.data, sizeof(char), DATASIZE, fp); 
       pack.cs = calc_checksum(pack.data); 
+      //printf("packet flag = %d\n", pack.flag); 
 
 /*
       printf("packet num = %d\n", packet_num); 
@@ -195,6 +197,8 @@ int main(int argc, char **argv) {
    //int window_start = 0; // start index for the window
    int next_packet_num = 0; // packet number of the next packet to be sent 
 
+   int cycles = 0; // for keeping track of repeated sequence numbers 
+
    while (packets_sent < num_packets)
    {
     while (next_packet_num - packets_sent < window_size && next_packet_num < num_packets)
@@ -212,6 +216,8 @@ int main(int argc, char **argv) {
         error("ERROR in sendto"); 
         */
       //packets_sent++;
+      packets[next_packet_num].flag = 1; // sent packet, now waiting for ACK 
+      printf("packet num %d flag = %d\n", packets[next_packet_num].seq_num, packets[next_packet_num].flag); 
       next_packet_num++;  
       //printf("packets sent = %d\n", packets_sent); 
       //printf("next packet num = %d\n", next_packet_num);
@@ -228,9 +234,15 @@ int main(int argc, char **argv) {
       error("ERROR in recvfrom");
 
     printf("Server received ack num = %d\n", ack_num); 
-    if (ack_num == packets_sent % 30)
+    //if (ack_num == packets_sent % 30 && packets[packets_sent].flag != 2)
+    if ((ack_num + 30 * cycles) >= packets_sent && (ack_num + 30 * cycles) < next_packet_num) 
     {
-      packets_sent++; 
+      packets[ack_num + (30 * cycles)].flag = 2; // received ACK for the packet 
+      printf("ack packet num %d flag = %d\n", packets[ack_num + (30 * cycles)].seq_num, packets[ack_num + (30 * cycles)].flag); 
+      if (ack_num == 29)
+        cycles++; 
+      if (ack_num == packets_sent % 30) // ack for the first packet in the window 
+        packets_sent++; // move the window forward  
       //packets_acked++; 
       /*
       printf("--------------------------------\n"); 
