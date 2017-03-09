@@ -74,25 +74,36 @@ int main(int argc, char **argv) {
     /* print the server's reply */
     buf[sizeof(filename)] = '\n'; 
 
-    //FILE* fp = fopen("received.data", "rb+"); 
+    struct packet received_packet; 
+    bzero(&received_packet, sizeof(struct packet)); 
 
     while (1)
     {
-        n = recvfrom(sockfd, buf, strlen(buf), 0, &serveraddr, &serverlen);
+        //bzero(buf, BUFSIZE); 
+        //n = recvfrom(sockfd, buf, sizeof(buf), 0, &serveraddr, &serverlen);
+        n = recvfrom(sockfd, &received_packet, sizeof(received_packet), 0, &serveraddr, &serverlen); 
         if (n < 0) 
           error("ERROR in recvfrom");
-        if (buf[0] != '\0')
+        else if (n > 0) 
         {
-            printf("Receiving from server: %s\n", buf);
+            printf("Receiving packet %d\n", received_packet.seq_num); 
+            //printf("Receiving from server: %s\n", buf);
+            /*
+            printf("len = %d\n", received_packet.len); 
+            printf("seq num = %d\n", received_packet.seq_num); 
+            printf("data = %s\n", received_packet.data); 
+            printf("data size = %d\n", sizeof(received_packet.data));
+            printf("checksum = %d\n", received_packet.cs);  
+            */ 
 
             bzero(buf, BUFSIZE);
-            strcpy(buf, "ACK from client"); 
+            sprintf(buf, "Client: Sending ACK #%d", received_packet.seq_num);   
             n = sendto(sockfd, buf, strlen(buf), 0, &serveraddr, serverlen); 
             if (n < 0)
                 error("ERROR in sendto"); 
-            printf("Sending ACK to server\n"); 
+            printf("Sending ACK #%d\n", received_packet.seq_num); 
         }
-        bzero(buf, BUFSIZE); 
+        //bzero(buf, BUFSIZE); 
     }
 
     return 0;

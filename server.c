@@ -16,6 +16,7 @@
 #include "packet.h"
 #include <math.h>
 #define BUFSIZE 1024
+#define DATASIZE 1016
 
 /*
  * error - wrapper for perror
@@ -131,9 +132,9 @@ int main(int argc, char **argv) {
      * sendto: echo the input back to the client 
      */
 
-    printf("%s\n\n",buf);
+    // printf("%s\n\n",buf);
 
-    fp = fopen(buf, "rb+");
+    fp = fopen(buf, "rb");
 
     if (fp == NULL){
      error("file not found.\n\n\n\n\n");
@@ -143,22 +144,26 @@ int main(int argc, char **argv) {
    struct stat stats; 
    stat(buf, &stats); 
    int file_size = stats.st_size; 
-   printf("file size = %d\n", file_size); 
+   //printf("file size = %d\n", file_size); 
 
-   int num_packets = ceil((double)file_size / BUFSIZE);  
-   printf("num packets = %d\n", num_packets);
+   int num_packets = ceil((double)file_size / DATASIZE);  
+   //printf("num packets = %d\n", num_packets);
 
    struct packet* packets = malloc(num_packets * sizeof(struct packet)); 
 
    int packet_num = 0; 
- 
-   char data[1016]; 
+   char data[DATASIZE]; 
    
    while (!feof(fp)) 
    {
       struct packet pack = {1024, packet_num % 30, data, calc_checksum(data)}; 
-      size_t read_length = fread(pack.data, strlen(pack.data) + 1, 1016, fp); 
+      size_t read_length = fread(pack.data, sizeof(char), DATASIZE, fp); 
       pack.cs = calc_checksum(pack.data); 
+
+/*
+      printf("packet num = %d\n", packet_num); 
+      printf("read length = %d\n", read_length); 
+*/
 
       if (read_length == 0)
       {
@@ -167,19 +172,53 @@ int main(int argc, char **argv) {
 
       *(packets + packet_num) = pack; 
       packet_num++; 
+
+      //n = sendto(sockfd, &pack, sizeof(pack), 0, (struct sockaddr*)&clientaddr, clientlen); 
+      //printf("firts send to\n"); 
    }
 
-   for (int i = 0; i <= num_packets; i++)
+
+/*
+   for (int i = 0; i < num_packets; i++)
    {
     printf("len = %d\n", packets[i].len); 
     printf("seq num = %d\n", packets[i].seq_num); 
     printf("data = %s\n", packets[i].data); 
+    printf("data size = %d\n", sizeof(packets[i].data));
     printf("checksum = %d\n", packets[i].cs);   
+    //n = sendto(sockfd, &packets[i], sizeof(packets[i]), 0, (struct sockaddr*)&clientaddr, clientlen);
    }
-  
-    n = sendto(sockfd, buf, strlen(buf), 0, 
+*/
+   int packets_sent = 0; 
+
+   while (packets_sent < num_packets)
+   {
+    printf("Sending packet %d\n", packets[packets_sent].seq_num); 
+    n = sendto(sockfd, &packets[packets_sent], sizeof(packets[packets_sent]), 0, (struct sockaddr*)&clientaddr, clientlen); 
+    if (n < 0)
+      error("ERROR in sendto"); 
+    packets_sent++; 
+    printf("packets sent = %d\n", packets_sent); 
+
+    bzero(buf, BUFSIZE);
+    n = recvfrom(sockfd, buf, BUFSIZE, 0,
+     (struct sockaddr *) &clientaddr, &clientlen);
+    if (n < 0)
+      error("ERROR in recvfrom");
+    printf("Server received message: %s\n", buf); 
+   }
+/*
+   n = sendto(sockfd, &packets[0], sizeof(packets[0]), 0, (struct sockaddr*)&clientaddr, clientlen); 
+   if (n < 0) 
+      error("ERROR in sendto");
+      */
+   //printf("sent\n"); 
+/*
+    n = sendto(sockfd, (char*)packets[0].data, sizeof(packets[0].data), 0, 
 	       (struct sockaddr *) &clientaddr, clientlen);
+         
     if (n < 0) 
       error("ERROR in sendto");
+      */
   }
 }
