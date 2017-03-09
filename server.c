@@ -189,23 +189,60 @@ int main(int argc, char **argv) {
     //n = sendto(sockfd, &packets[i], sizeof(packets[i]), 0, (struct sockaddr*)&clientaddr, clientlen);
    }
 */
-   int packets_sent = 0; 
+   int packets_sent = 0; // start index for the window 
+   //int packets_acked = 0; 
+
+   //int window_start = 0; // start index for the window
+   int next_packet_num = 0; // packet number of the next packet to be sent 
 
    while (packets_sent < num_packets)
    {
-    printf("Sending packet %d\n", packets[packets_sent].seq_num); 
-    n = sendto(sockfd, &packets[packets_sent], sizeof(packets[packets_sent]), 0, (struct sockaddr*)&clientaddr, clientlen); 
-    if (n < 0)
-      error("ERROR in sendto"); 
-    packets_sent++; 
-    printf("packets sent = %d\n", packets_sent); 
+    while (next_packet_num - packets_sent < window_size && next_packet_num < num_packets)
+      // have space in the window to send a new packet and haven't sent all the packets in the file yet 
+    {
+      printf("Sending packet %d\n", packets[next_packet_num].seq_num);
+      n = sendto(sockfd, &packets[next_packet_num], sizeof(packets[next_packet_num]), 0, (struct sockaddr*)&clientaddr, clientlen); 
+      if (n < 0)
+        error("ERROR in sendto");
+
+      /*
+      printf("Sending packet %d\n", packets[packets_sent].seq_num); 
+      n = sendto(sockfd, &packets[packets_sent], sizeof(packets[packets_sent]), 0, (struct sockaddr*)&clientaddr, clientlen); 
+      if (n < 0)
+        error("ERROR in sendto"); 
+        */
+      //packets_sent++;
+      next_packet_num++;  
+      //printf("packets sent = %d\n", packets_sent); 
+      //printf("next packet num = %d\n", next_packet_num);
+     }
 
     bzero(buf, BUFSIZE);
-    n = recvfrom(sockfd, buf, BUFSIZE, 0,
-     (struct sockaddr *) &clientaddr, &clientlen);
+    int ack_num;
+    bzero(&ack_num, sizeof(ack_num)); 
+
+    //n = recvfrom(sockfd, buf, BUFSIZE, 0,
+     //(struct sockaddr *) &clientaddr, &clientlen);
+    n = recvfrom(sockfd, &ack_num, sizeof(ack_num), 0, (struct sockaddr*)&clientaddr, &clientlen); 
     if (n < 0)
       error("ERROR in recvfrom");
-    printf("Server received message: %s\n", buf); 
+
+    printf("Server received ack num = %d\n", ack_num); 
+    if (ack_num == packets_sent % 30)
+    {
+      packets_sent++; 
+      //packets_acked++; 
+      /*
+      printf("--------------------------------\n"); 
+      printf("after ack\n"); 
+      printf("packets sent = %d\n", packets_sent); 
+      printf("next packet num = %d\n", next_packet_num);
+      printf("total packets acked = %d\n", packets_acked); 
+      printf("--------------------------------\n"); 
+      */
+    }
+    //printf("Server received message: %s\n", buf); 
+
    }
 /*
    n = sendto(sockfd, &packets[0], sizeof(packets[0]), 0, (struct sockaddr*)&clientaddr, clientlen); 
