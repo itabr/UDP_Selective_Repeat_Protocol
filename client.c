@@ -77,6 +77,10 @@ int main(int argc, char **argv) {
     struct packet received_packet; 
     bzero(&received_packet, sizeof(struct packet)); 
 
+    FILE *fp;
+
+    fp = fopen("output", "a+");
+
     while (1)
     {
         //bzero(buf, BUFSIZE); 
@@ -86,6 +90,9 @@ int main(int argc, char **argv) {
           error("ERROR in recvfrom");
         else if (n > 0) 
         {
+
+            fwrite(received_packet.data , sizeof(char) , sizeof(received_packet.data) , fp );
+
             printf("Receiving packet %d\n", received_packet.seq_num); 
             //printf("Receiving from server: %s\n", buf);
             /*
