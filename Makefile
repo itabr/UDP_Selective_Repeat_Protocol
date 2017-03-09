@@ -1,6 +1,6 @@
 # declare variable
 C = gcc
-CFLAGS= -Wall -o
+CFLAGS= -w -Wall -o
 # build an executable named server from server.c
 # build an executable named client from client.c
 
