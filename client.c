@@ -10,7 +10,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h> 
-#include "packet.h"
+#include "linked_list.h"
 
 #define BUFSIZE 1024
 
@@ -81,17 +81,42 @@ int main(int argc, char **argv) {
 
     fp = fopen("output", "a+");
 
+    int expected_packet = 0;
+
     while (1)
-    {
+    {   
+        if(expected_packet == 30){
+            expected_packet = 0;
+        }
         //bzero(buf, BUFSIZE); 
         //n = recvfrom(sockfd, buf, sizeof(buf), 0, &serveraddr, &serverlen);
+
         n = recvfrom(sockfd, &received_packet, sizeof(received_packet), 0, &serveraddr, &serverlen); 
         if (n < 0) 
           error("ERROR in recvfrom");
         else if (n > 0) 
         {
+            if(received_packet.seq_num == expected_packet){
+                fwrite(received_packet.data , sizeof(char) , sizeof(received_packet.data) , fp );
+                expected_packet = expected_packet +1;
+            }
+            else{
 
-            fwrite(received_packet.data , sizeof(char) , sizeof(received_packet.data) , fp );
+                insertFirst(received_packet.seq_num,received_packet);
+
+                struct node *temp = find(expected_packet);
+
+                while(temp){
+                    fwrite(temp->new_packet.data , sizeof(char) , sizeof(temp->new_packet.data) , fp );
+
+                    delete(temp->key);
+
+                    expected_packet = expected_packet + 1;
+                    temp = find(expected_packet);
+                }
+            }
+
+            // fwrite(received_packet.data , sizeof(char) , sizeof(received_packet.data) , fp );
 
             printf("Receiving packet %d\n", received_packet.seq_num); 
             //printf("Receiving from server: %s\n", buf);
@@ -111,7 +136,20 @@ int main(int argc, char **argv) {
             printf("Sending ACK #%d\n", received_packet.seq_num); 
         }
         //bzero(buf, BUFSIZE); 
+
+           // struct packet junk = {1024, 10, "0", 0};
+
+           // insertFirst(1,junk);
+           // insertFirst(2,junk);
+           // insertFirst(3,junk);
+           // insertFirst(4,junk);
+           // insertFirst(5,junk);
+           // insertFirst(6,junk);
+        
+           //print list
+           printList();
     }
+
 
     return 0;
 }
