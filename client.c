@@ -99,8 +99,19 @@ int main(int argc, char **argv) {
             if(received_packet.seq_num == expected_packet){
                 fwrite(received_packet.data , sizeof(char) , sizeof(received_packet.data) , fp );
                 expected_packet = expected_packet +1;
+		struct node *temp = find(expected_packet);
+
+                while(temp){
+                    fwrite(temp->new_packet.data , sizeof(char) , 			    sizeof(temp->new_packet.data) , fp );
+                    delete(temp->key);
+                    expected_packet = expected_packet + 1;
+			if(expected_packet == 30){
+           		 expected_packet = 0;
+        		}
+                    temp = find(expected_packet);
+                }
             }
-            else{
+            else if(received_packet.seq_num > expected_packet){
 
                 insertFirst(received_packet.seq_num,received_packet);
 
@@ -118,7 +129,19 @@ int main(int argc, char **argv) {
 
             // fwrite(received_packet.data , sizeof(char) , sizeof(received_packet.data) , fp );
 
+		                struct node *temp = find(expected_packet);
+
+                while(temp){
+                    fwrite(temp->new_packet.data , sizeof(char) , sizeof(temp->new_packet.data) , fp );
+
+                    delete(temp->key);
+
+                    expected_packet = expected_packet + 1;
+                    temp = find(expected_packet);
+                }
+
             printf("Receiving packet %d\n", received_packet.seq_num); 
+	    printf("packet nummmmm %d\n", expected_packet);
             //printf("Receiving from server: %s\n", buf);
             /*
             printf("len = %d\n", received_packet.len); 
@@ -128,9 +151,14 @@ int main(int argc, char **argv) {
             printf("checksum = %d\n", received_packet.cs);  
             */ 
 
-            bzero(buf, BUFSIZE);
-            sprintf(buf, "Client: Sending ACK #%d", received_packet.seq_num);   
-            n = sendto(sockfd, buf, strlen(buf), 0, &serveraddr, serverlen); 
+            //bzero(buf, BUFSIZE);
+            //sprintf(buf, "Client: Sending ACK #%d", received_packet.seq_num);   
+            //n = sendto(sockfd, buf, strlen(buf), 0, &serveraddr, serverlen); 
+            int ack_num = received_packet.seq_num;
+            printf("ack num = %d\n", ack_num); 
+
+            printf("time stamp = %f\n", received_packet.timestamp); 
+            n = sendto(sockfd, &ack_num, sizeof(ack_num), 0, &serveraddr, serverlen); 
             if (n < 0)
                 error("ERROR in sendto"); 
             printf("Sending ACK #%d\n", received_packet.seq_num); 

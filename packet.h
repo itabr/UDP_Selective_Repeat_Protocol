@@ -8,5 +8,5 @@ struct packet
   int cs;
   char data[DATA_SIZE];
   int flag; // 0 = haven't sent, 1 = sent + waiting for ACK, 2 = received ACK 
-  //int timestamp;
+  long double timestamp;
 };

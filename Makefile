@@ -5,11 +5,11 @@ CFLAGS= -w -Wall -o
 # build an executable named client from client.c
 
 all: server.c 
-	@$(C) $(CFLAGS) server -g server.c
+	@$(C) $(CFLAGS) server -g server.c -lm
 	@$(C) $(CFLAGS) client -g client.c
 
 server: server.c
-	@$(C) $(CFLAGS) server -g server.c
+	@$(C) $(CFLAGS) server -g server.c -lm
 
 client: client.c
 	@$(C) $(CFLAGS) client -g client.c

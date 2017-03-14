@@ -15,6 +15,8 @@
 #include <sys/stat.h>
 #include "packet.h"
 #include <math.h>
+#include <sys/time.h>
+#include <sys/timeb.h> 
 #define BUFSIZE 1024
 #define DATASIZE 1016
 
@@ -33,6 +35,20 @@ char calc_checksum(char* data)
   while (size-- != 0)
     checksum -= *data++; 
   return checksum; 
+}
+
+long double get_timestamp()
+{
+  struct timeval timer_usec;
+  long double timestamp_usec; 
+  if (!gettimeofday(&timer_usec, NULL))
+  {
+    timestamp_usec = ((long double)timer_usec.tv_sec) * 100000011 
+	+ (long double) timer_usec.tv_usec; 
+  }
+
+  //printf("timestamp = %lld microseconds\n", timestamp_usec); 
+  return timestamp_usec; 
 }
 
 int main(int argc, char **argv) {
@@ -157,7 +173,7 @@ int main(int argc, char **argv) {
    while (!feof(fp)) 
    {
       //struct packet pack = {1024, packet_num % 30, data, calc_checksum(data)}; 
-      struct packet pack = {1024, packet_num % 30, calc_checksum(data), data, 0}; 
+      struct packet pack = {1024, packet_num % 30, calc_checksum(data), data, 0, 0}; 
       size_t read_length = fread(pack.data, sizeof(char), DATASIZE, fp); 
       pack.cs = calc_checksum(pack.data); 
       //printf("packet flag = %d\n", pack.flag); 
@@ -191,7 +207,7 @@ int main(int argc, char **argv) {
     //n = sendto(sockfd, &packets[i], sizeof(packets[i]), 0, (struct sockaddr*)&clientaddr, clientlen);
    }
 */
-   int packets_sent = 0; // start index for the window 
+   int window_start = 0; // start index for the window 
    //int packets_acked = 0; 
 
    //int window_start = 0; // start index for the window
@@ -199,75 +215,107 @@ int main(int argc, char **argv) {
 
    int cycles = 0; // for keeping track of repeated sequence numbers 
 
-   while (packets_sent < num_packets)
+   /* for timeout */
+   struct timeval timeout;
+   timeout.tv_sec = 0;
+   timeout.tv_usec = 500000;
+   
+   while (window_start < num_packets)
    {
-    while (next_packet_num - packets_sent < window_size && next_packet_num < num_packets)
+//printf("window start = %d\n", window_start); 
+
+//printf("end for loop\n"); 
+    while (next_packet_num - window_start < window_size && next_packet_num < num_packets)
       // have space in the window to send a new packet and haven't sent all the packets in the file yet 
     {
+	//printf("begin inner while loop\n"); 
       printf("Sending packet %d\n", packets[next_packet_num].seq_num);
+
+      packets[next_packet_num].timestamp = get_timestamp();  
+      //printf("packet timestamp = %lld\n", packets[next_packet_num].timestamp); 
+
       n = sendto(sockfd, &packets[next_packet_num], sizeof(packets[next_packet_num]), 0, (struct sockaddr*)&clientaddr, clientlen); 
       if (n < 0)
         error("ERROR in sendto");
 
       /*
-      printf("Sending packet %d\n", packets[packets_sent].seq_num); 
-      n = sendto(sockfd, &packets[packets_sent], sizeof(packets[packets_sent]), 0, (struct sockaddr*)&clientaddr, clientlen); 
+      printf("Sending packet %d\n", packets[window_start].seq_num); 
+      n = sendto(sockfd, &packets[window_start], sizeof(packets[window_start]), 0, (struct sockaddr*)&clientaddr, clientlen); 
       if (n < 0)
         error("ERROR in sendto"); 
         */
-      //packets_sent++;
+      //window_start++;
       packets[next_packet_num].flag = 1; // sent packet, now waiting for ACK 
-      printf("packet num %d flag = %d\n", packets[next_packet_num].seq_num, packets[next_packet_num].flag); 
+      //printf("packet num %d flag = %d\n", packets[next_packet_num].seq_num, packets[next_packet_num].flag); 
       next_packet_num++;  
-      //printf("packets sent = %d\n", packets_sent); 
+      printf("window start = %d\n", window_start); 
       //printf("next packet num = %d\n", next_packet_num);
      }
+//printf("end inner while loop\n"); 
 
     bzero(buf, BUFSIZE);
     int ack_num;
     bzero(&ack_num, sizeof(ack_num)); 
 
+    fd_set readfds; 
+    FD_ZERO(&readfds); 
+    FD_SET(sockfd, &readfds); 
+
+
     //n = recvfrom(sockfd, buf, BUFSIZE, 0,
      //(struct sockaddr *) &clientaddr, &clientlen);
-    n = recvfrom(sockfd, &ack_num, sizeof(ack_num), 0, (struct sockaddr*)&clientaddr, &clientlen); 
-    if (n < 0)
-      error("ERROR in recvfrom");
-
-    printf("Server received ack num = %d\n", ack_num); 
-    //if (ack_num == packets_sent % 30 && packets[packets_sent].flag != 2)
-    if ((ack_num + 30 * cycles) >= packets_sent && (ack_num + 30 * cycles) < next_packet_num) 
-    {
-      packets[ack_num + (30 * cycles)].flag = 2; // received ACK for the packet 
-      printf("ack packet num %d flag = %d\n", packets[ack_num + (30 * cycles)].seq_num, packets[ack_num + (30 * cycles)].flag); 
-      if (ack_num == 29)
-        cycles++; 
-      if (ack_num == packets_sent % 30) // ack for the first packet in the window 
-        packets_sent++; // move the window forward  
-      //packets_acked++; 
-      /*
-      printf("--------------------------------\n"); 
-      printf("after ack\n"); 
-      printf("packets sent = %d\n", packets_sent); 
-      printf("next packet num = %d\n", next_packet_num);
-      printf("total packets acked = %d\n", packets_acked); 
-      printf("--------------------------------\n"); 
-      */
+     
+    //n = recvfrom(sockfd, &ack_num, sizeof(ack_num), 0, (struct sockaddr*)&clientaddr, &clientlen); 
+    n = select(sockfd + 1, &readfds, NULL, NULL, &timeout); 
+    if (n > 0)
+    { 
+	     //printf("%d\n", n); 
+       int k = recvfrom(sockfd, &ack_num, sizeof(ack_num), 0, (struct sockaddr*)&clientaddr, &clientlen); 
+       printf("Server received ack num = %d\n", ack_num); 
+    //if (ack_num == window_start % 30 && packets[window_start].flag != 2)
+       if ((ack_num + 30 * cycles) >= window_start && (ack_num + 30 * cycles) < next_packet_num) 
+       {
+         packets[ack_num + (30 * cycles)].flag = 2; // received ACK for the packet 
+      //printf("ack packet num %d flag = %d\n", packets[ack_num + (30 * cycles)].seq_num, packets[ack_num + (30 * cycles)].flag); 
+         if (ack_num == window_start % 30) // ack for the first packet in the window 
+         {
+	         packets[window_start].flag = 2; 
+           while (packets[window_start].flag == 2)
+           {
+              window_start++; // move the window forward to the first unacked packet
+              if (window_start == 30)
+                cycles++; 
+           }
+         }
+       }
     }
-    //printf("Server received message: %s\n", buf); 
+    else if (n == 0)
+    {
+      printf("timeout occurred\n"); 
+      int i;
+      for (i = window_start; i < window_start + window_size; i++)
+      {
+        if (packets[i].flag == 1)
+        {
+            struct timeval timer_usec;
+            long double timestamp_usec; 
+            gettimeofday(&timer_usec, NULL);
+            timestamp_usec = ((long double)timer_usec.tv_sec) * 100000011 + (long double) timer_usec.tv_usec; 
 
+            //printf("current = %lld microseconds\n", timestamp_usec); 
+            printf("time diff for packet %d = %lld\n", i, timestamp_usec - packets[i].timestamp); 
+
+            if (timestamp_usec - packets[i].timestamp >= 500000)
+            {
+                printf("timeout for packet %d\n", i);
+                packets[i].timestamp = get_timestamp();  
+                n = sendto(sockfd, &packets[i], sizeof(packets[i]), 0, (struct sockaddr*)&clientaddr, clientlen); 
+                if (n < 0)
+                error("ERROR in retransmit"); 
+            }
+        }
+      }
+    }
    }
-/*
-   n = sendto(sockfd, &packets[0], sizeof(packets[0]), 0, (struct sockaddr*)&clientaddr, clientlen); 
-   if (n < 0) 
-      error("ERROR in sendto");
-      */
-   //printf("sent\n"); 
-/*
-    n = sendto(sockfd, (char*)packets[0].data, sizeof(packets[0].data), 0, 
-	       (struct sockaddr *) &clientaddr, clientlen);
-         
-    if (n < 0) 
-      error("ERROR in sendto");
-      */
   }
 }
