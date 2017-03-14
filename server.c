@@ -173,7 +173,7 @@ int main(int argc, char **argv) {
    while (!feof(fp)) 
    {
       //struct packet pack = {1024, packet_num % 30, data, calc_checksum(data)}; 
-      struct packet pack = {1024, packet_num % 30, calc_checksum(data), data, 0, 0}; 
+      struct packet pack = {1024, packet_num % 30, packet_num, calc_checksum(data), data, 0, 0}; 
       size_t read_length = fread(pack.data, sizeof(char), DATASIZE, fp); 
       pack.cs = calc_checksum(pack.data); 
       //printf("packet flag = %d\n", pack.flag); 
@@ -213,7 +213,7 @@ int main(int argc, char **argv) {
    //int window_start = 0; // start index for the window
    int next_packet_num = 0; // packet number of the next packet to be sent 
 
-   int cycles = 0; // for keeping track of repeated sequence numbers 
+   //int cycles = 0; // for keeping track of repeated sequence numbers 
 
    /* for timeout */
    struct timeval timeout;
@@ -273,25 +273,30 @@ int main(int argc, char **argv) {
        int k = recvfrom(sockfd, &ack_num, sizeof(ack_num), 0, (struct sockaddr*)&clientaddr, &clientlen); 
        printf("Server received ack num = %d\n", ack_num); 
     //if (ack_num == window_start % 30 && packets[window_start].flag != 2)
-       if ((ack_num + 30 * cycles) >= window_start && (ack_num + 30 * cycles) < next_packet_num) 
+       //if ((ack_num + 30 * cycles) >= window_start && (ack_num + 30 * cycles) < next_packet_num) 
+       if (ack_num < next_packet_num)
        {
-         packets[ack_num + (30 * cycles)].flag = 2; // received ACK for the packet 
+         //packets[ack_num + (30 * cycles)].flag = 2; // received ACK for the packet 
+	 packets[ack_num].flag = 2; 
       //printf("ack packet num %d flag = %d\n", packets[ack_num + (30 * cycles)].seq_num, packets[ack_num + (30 * cycles)].flag); 
-         if (ack_num == window_start % 30) // ack for the first packet in the window 
+         //if (ack_num == window_start % 30) // ack for the first packet in the window 
+	 if (ack_num == window_start)
          {
-	         packets[window_start].flag = 2; 
+	   packets[window_start].flag = 2; 
            while (packets[window_start].flag == 2)
            {
               window_start++; // move the window forward to the first unacked packet
+	      /*
               if (window_start == 30)
                 cycles++; 
+	      */
            }
          }
        }
     }
     else if (n == 0)
     {
-      printf("timeout occurred\n"); 
+      //printf("timeout occurred\n"); 
       int i;
       for (i = window_start; i < window_start + window_size; i++)
       {
@@ -302,8 +307,9 @@ int main(int argc, char **argv) {
             gettimeofday(&timer_usec, NULL);
             timestamp_usec = ((long double)timer_usec.tv_sec) * 100000011 + (long double) timer_usec.tv_usec; 
 
-            //printf("current = %lld microseconds\n", timestamp_usec); 
-            printf("time diff for packet %d = %lld\n", i, timestamp_usec - packets[i].timestamp); 
+            //printf("current = %Lf microseconds\n", timestamp_usec); 
+	    //printf("packet timestamp = %Lf microseconds\n", packets[i].timestamp); 
+            //printf("time diff for packet %d = %Lf\n", i, timestamp_usec - packets[i].timestamp); 
 
             if (timestamp_usec - packets[i].timestamp >= 500000)
             {
