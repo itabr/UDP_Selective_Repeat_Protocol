@@ -72,10 +72,31 @@ int main(int argc, char **argv) {
       error("ERROR in sendto");
     
     /* print the server's reply */
-    buf[sizeof(filename)] = '\n'; 
+    //buf[sizeof(filename)] = '\n'; 
 
     struct packet received_packet; 
     bzero(&received_packet, sizeof(struct packet)); 
+
+    fd_set readfds;
+    FD_ZERO(&readfds);
+    FD_SET(sockfd, &readfds);
+
+    struct timeval timeout;
+    timeout.tv_sec = 0;
+    timeout.tv_usec = 500000;
+
+    n = select(sockfd + 1, &readfds, NULL, NULL, &timeout);
+    while (n == 0)
+    {
+	printf("Retransmit file name\n");
+        n = sendto(sockfd, buf, strlen(buf), 0, &serveraddr, serverlen);
+        if (n < 0) 
+          error("ERROR in sendto");
+        fd_set readfds;
+        FD_ZERO(&readfds);
+        FD_SET(sockfd, &readfds); 
+        n = select(sockfd + 1, &readfds, NULL, NULL, &timeout); 
+    } 
 
     FILE *fp;
 
@@ -147,18 +168,7 @@ int main(int argc, char **argv) {
 
             printf("Receiving packet %d\n", received_packet.packet_num); 
 	    printf("packet nummmmm %d\n", expected_packet);
-            //printf("Receiving from server: %s\n", buf);
-            /*
-            printf("len = %d\n", received_packet.len); 
-            printf("seq num = %d\n", received_packet.seq_num); 
-            printf("data = %s\n", received_packet.data); 
-            printf("data size = %d\n", sizeof(received_packet.data));
-            printf("checksum = %d\n", received_packet.cs);  
-            */ 
 
-            //bzero(buf, BUFSIZE);
-            //sprintf(buf, "Client: Sending ACK #%d", received_packet.seq_num);   
-            //n = sendto(sockfd, buf, strlen(buf), 0, &serveraddr, serverlen); 
             int ack_num = received_packet.packet_num;
             printf("ack num = %d\n", ack_num); 
 
