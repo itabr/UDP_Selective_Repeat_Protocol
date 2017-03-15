@@ -122,6 +122,7 @@ int main(int argc, char **argv) {
     /*
      * recvfrom: receive a UDP datagram from a client
      */
+     printf("restart while\n"); 
 
     bzero(buf, BUFSIZE);
     n = recvfrom(sockfd, buf, BUFSIZE, 0,
@@ -165,6 +166,11 @@ int main(int argc, char **argv) {
 
    int packet_num = 0; 
    char data[DATASIZE]; 
+
+   /* for timeout */
+   struct timeval timeout;
+   timeout.tv_sec = 0;
+   timeout.tv_usec = 500000;
    
    while (!feof(fp)) 
    {
@@ -185,18 +191,13 @@ int main(int argc, char **argv) {
    int next_packet_num = 0; // packet number of the next packet to be sent 
 
    //int cycles = 0; // for keeping track of repeated sequence numbers 
-
-   /* for timeout */
-   struct timeval timeout;
-   timeout.tv_sec = 0;
-   timeout.tv_usec = 500000;
    
    while (window_start < num_packets)
    {
     while (next_packet_num - window_start < window_size && next_packet_num < num_packets)
       // have space in the window to send a new packet and haven't sent all the packets in the file yet 
     {
-      printf("Sending packet %d\n", packets[next_packet_num].seq_num);
+      printf("Sending packet %d\n", packets[next_packet_num].packet_num);
 
       packets[next_packet_num].timestamp = get_timestamp();  
 
@@ -269,6 +270,82 @@ int main(int argc, char **argv) {
       }
     }
    }
+   // finished transmitting all packets, do the FIN/FIN-ACK procedure 
+   struct packet fin = {1024, num_packets % 30, num_packets, 0, NULL, 3, get_timestamp()}; // flag = 3 denotes FIN
+   fin.flag = 3; 
+   printf("Sending server FIN, packet %d flag %d\n", fin.packet_num, fin.flag); 
+   n = sendto(sockfd, &fin, sizeof(fin), 0, (struct sockaddr*)&clientaddr, clientlen); 
+   if (n < 0)
+    error("ERROR in sendto"); 
+
+   int fin_wait1 = 1; 
+   while (fin_wait1)
+   {
+     fd_set readfds; 
+     FD_ZERO(&readfds); 
+     FD_SET(sockfd, &readfds); 
+     n = select(sockfd + 1, &readfds, NULL, NULL, &timeout); 
+     if (n == 0 && get_timestamp() - fin.timestamp > 500000)
+     {
+        printf("Retransmit FIN\n"); 
+        fin.timestamp = get_timestamp(); 
+        n = sendto(sockfd, &fin, sizeof(fin), 0, &clientaddr, clientlen);
+        if (n < 0) 
+          error("ERROR in sendto");
+     }
+     else if (n > 0)
+     { 
+        int ack_num; 
+        bzero(&ack_num, sizeof(ack_num)); 
+        n = recvfrom(sockfd, &ack_num, sizeof(ack_num), 0, (struct sockaddr*)&clientaddr, &clientlen);
+        if (n < 0)
+          error("ERROR in recvfrom"); 
+        printf("Received client FIN-ACK, packet %d\n", ack_num);
+        if (ack_num == fin.packet_num) // received FIN-ACK, enter fin wait 2 state 
+          fin_wait1 = 0;
+     } 
+   }
+
+   int fin_wait2 = 1; // wait for a FIN from the client 
+   struct packet received_packet; 
+   bzero(&received_packet, sizeof(struct packet)); 
+
+   struct packet fin_ack = {1024, (num_packets + 1) % 30, num_packets + 1, 0, NULL, 4, get_timestamp()};
+   fin_ack.flag = 4; 
+
+   while (fin_wait2)
+   {
+    printf("reiterate\n"); 
+    n = recvfrom(sockfd, &received_packet, sizeof(received_packet), 0, &clientaddr, &clientlen); 
+    if (n < 0)
+      error("ERROR in recvfrom"); 
+    if (received_packet.flag == 3) // FIN packet
+    {
+      printf("Received client FIN\n"); 
+      // received client FIN, server sends an ACK + enters TIME-WAIT
+      fin_ack.timestamp = get_timestamp();
+      printf("Sending server FIN-ACK\n"); 
+      n = sendto(sockfd, &fin_ack, sizeof(fin_ack), 0, (struct sockaddr*)&clientaddr, clientlen); 
+      if (n < 0)
+        error("ERROR in sendto"); 
+      sleep(1); // sleep for 2*RTO
+
+      printf("finished sleep\n"); 
+
+      // see if client sent over anything
+      fd_set readfds; 
+      FD_ZERO(&readfds); 
+      FD_SET(sockfd, &readfds); 
+      n = select(sockfd + 1, &readfds, NULL, NULL, &timeout); 
+      if (n == 0)
+      {
+        printf("close socket\n");
+        fin_wait2 = 0;
+        printf("fin wait 2 = %d\n", fin_wait2); 
+      }
+    }
+   }
+   printf("exit fin while\n"); 
   }
 }
 
