@@ -79,7 +79,7 @@ int main(int argc, char **argv) {
 
     FILE *fp;
 
-    fp = fopen("output", "a+");
+    fp = fopen("output", "wb+");
 
     int expected_packet = 0;
 
@@ -105,14 +105,14 @@ int main(int argc, char **argv) {
 		struct node *temp = find(expected_packet);
 
                 while(temp){
-                    fwrite(temp->new_packet.data , sizeof(char) , sizeof(temp->new_packet.data) , fp );
+                    fwrite(temp->new_packet.data , sizeof(char) , 			    sizeof(temp->new_packet.data) , fp );
                     delete(temp->key);
                     expected_packet = expected_packet + 1;
-                    /*
+			/*
 			if(expected_packet == 30){
            		 expected_packet = 0;
-                 */
         		}
+			*/ 
                     temp = find(expected_packet);
                 }
             }
@@ -134,7 +134,7 @@ int main(int argc, char **argv) {
 
             // fwrite(received_packet.data , sizeof(char) , sizeof(received_packet.data) , fp );
 
-		        struct node *temp = find(expected_packet);
+		struct node *temp = find(expected_packet);
 
                 while(temp){
                     fwrite(temp->new_packet.data , sizeof(char) , sizeof(temp->new_packet.data) , fp );
@@ -146,7 +146,7 @@ int main(int argc, char **argv) {
                 }
 
             printf("Receiving packet %d\n", received_packet.packet_num); 
-	        printf("packet nummmmm %d\n", expected_packet);
+	    printf("packet nummmmm %d\n", expected_packet);
             //printf("Receiving from server: %s\n", buf);
             /*
             printf("len = %d\n", received_packet.len); 
