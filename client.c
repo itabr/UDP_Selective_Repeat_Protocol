@@ -138,6 +138,8 @@ int main(int argc, char **argv) {
           error("ERROR in recvfrom");
         else if (n > 0)
         {
+            if (strcmp(received_packet.data, "File not found") == 0)
+                exit(-1); 
     	    if (received_packet.packet_num == expected_packet && received_packet.flag != 3){
 
                 size = sizeof(received_packet.data);

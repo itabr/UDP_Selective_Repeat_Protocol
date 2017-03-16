@@ -65,6 +65,7 @@ int main(int argc, char **argv) {
   int n; /* message byte size */
 
   int window_size = 5;
+  srand(time(NULL)); // seed random # generator
 
 
   FILE *fp;
@@ -141,9 +142,18 @@ int main(int argc, char **argv) {
      * sendto: echo the input back to the client 
      */
 
+    /* choose a random start # between 0 and 30720 for the sequence # */ 
+    int seq_num = rand() % 30720; 
+    printf("starting seq num = %d\n", seq_num);  
+
+    //printf("Receiving packet %d")
+
+
     fp = fopen(buf, "rb");
 
     if (fp == NULL){
+      struct packet not_found = {1024, -1, -1, -1, "File not found", 0, 0}; 
+      n = sendto(sockfd, &not_found, sizeof(not_found), 0, (struct sockaddr*)&clientaddr, clientlen); 
      error("file not found.\n\n\n\n\n");
     }
 
@@ -156,8 +166,8 @@ int main(int argc, char **argv) {
 
    struct packet* packets = malloc(num_packets * sizeof(struct packet)); 
 
-   int packet_num = 0; 
-   char data[DATASIZE]; 
+   int packet_num = 0;
+   char data[DATASIZE];
 
    /* for timeout */
    struct timeval timeout;
