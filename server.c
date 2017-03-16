@@ -18,7 +18,7 @@
 #include <sys/time.h>
 #include <sys/timeb.h> 
 #define BUFSIZE 1024
-#define DATASIZE 1016
+#define DATASIZE 996
 
 /*
  * error - wrapper for perror
@@ -31,7 +31,7 @@ void error(char *msg) {
 char calc_checksum(char* data)
 {
   int checksum = 0; 
-  int size = 1016; 
+  int size = DATASIZE; 
   while (size-- != 0)
     checksum -= *data++; 
   return checksum; 
