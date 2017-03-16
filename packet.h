@@ -1,4 +1,4 @@
-#define DATA_SIZE 996
+#define DATA_SIZE 992
 #define CS_SIZE 2
 
 struct packet

@@ -112,6 +112,11 @@ int main(int argc, char **argv) {
             n = sendto(sockfd, buf, strlen(buf), 0, &serveraddr, serverlen);
             if (n < 0) 
               error("ERROR in sendto");
+            else if (n == 0)
+            {
+                printf("socket closed\n"); 
+                close(sockfd); 
+            }
         }
         else if (n > 0)
             filename_received = 1; 
@@ -189,14 +194,14 @@ int main(int argc, char **argv) {
                     
                     if (n > 0)
                     {
-			n = recvfrom(sockfd, &received_packet, sizeof(received_packet), 0, &serveraddr, &serverlen); 
-			if (received_packet.flag == 3) {
-                        printf("Retransmit ACK\n"); 
-                        time_sent_ack = get_timestamp();  
-                        n = sendto(sockfd, &ack, sizeof(ack), 0, &serveraddr, serverlen);
-                        if (n < 0) 
-                          error("ERROR in sendto");
-			}
+            			n = recvfrom(sockfd, &received_packet, sizeof(received_packet), 0, &serveraddr, &serverlen); 
+            			if (received_packet.flag == 3) {
+                            printf("Retransmit ACK\n"); 
+                            time_sent_ack = get_timestamp();  
+                            n = sendto(sockfd, &ack, sizeof(ack), 0, &serveraddr, serverlen);
+                            if (n < 0) 
+                              error("ERROR in sendto");
+    			}
                     }
                     
                     else if (n == 0 && get_timestamp() - time_sent_ack > 500000) // server received ACK successfully
@@ -233,14 +238,14 @@ int main(int argc, char **argv) {
                                     complete = 1; 
                                 }
                             }
-			    else if (n == 0 && get_timestamp() - fin.timestamp > 500000)
-			    {
-				printf("Retransmit client FIN\n"); 
-				fin.timestamp = get_timestamp();
-				n = sendto(sockfd, &fin, sizeof(fin), 0, &serveraddr, serverlen);
-				if (n < 0)
-				    error("ERROR in sendto");
-			    }
+            			    else if (n == 0 && get_timestamp() - fin.timestamp > 500000)
+            			    {
+                				printf("Retransmit client FIN\n"); 
+                				fin.timestamp = get_timestamp();
+                				n = sendto(sockfd, &fin, sizeof(fin), 0, &serveraddr, serverlen);
+                				if (n < 0)
+                				    error("ERROR in sendto");
+                			 }
                         }
                     }
                     //else if (n > 0) // server retransmitted the FIN 

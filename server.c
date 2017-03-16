@@ -18,7 +18,7 @@
 #include <sys/time.h>
 #include <sys/timeb.h> 
 #define BUFSIZE 1024
-#define DATASIZE 996
+#define DATASIZE 992
 
 /*
  * error - wrapper for perror
@@ -340,6 +340,7 @@ int main(int argc, char **argv) {
       {
         printf("Connection finished\n"); 
         fin_wait2 = 0; 
+        free(packets); 
       }
     }
    }
