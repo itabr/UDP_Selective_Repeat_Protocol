@@ -111,18 +111,9 @@ int main(int argc, char **argv) {
 	   sizeof(serveraddr)) < 0) 
     error("ERROR on binding");
 
-  /* 
-   * main loop: wait for a datagram, then echo it
-   */
-
   clientlen = sizeof(clientaddr);
 
   while (1) {
-
-    /*
-     * recvfrom: receive a UDP datagram from a client
-     */
-     printf("restart while\n"); 
 
     bzero(buf, BUFSIZE);
     n = recvfrom(sockfd, buf, BUFSIZE, 0,
@@ -313,12 +304,17 @@ int main(int argc, char **argv) {
    struct packet fin_ack = {1024, (num_packets + 1) % 30, num_packets + 1, 0, NULL, 4, get_timestamp()};
    fin_ack.flag = 4; 
 
+   struct timeval timewait;
+   timewait.tv_sec = 1; 
+   timewait.tv_usec = 0; 
+
    while (fin_wait2)
    {
-    printf("reiterate\n"); 
+    //printf("reiterate\n"); 
     n = recvfrom(sockfd, &received_packet, sizeof(received_packet), 0, &clientaddr, &clientlen); 
     if (n < 0)
       error("ERROR in recvfrom"); 
+    printf("received packet # %d\n", received_packet.packet_num); 
     if (received_packet.flag == 3) // FIN packet
     {
       printf("Received client FIN\n"); 
@@ -327,25 +323,20 @@ int main(int argc, char **argv) {
       printf("Sending server FIN-ACK\n"); 
       n = sendto(sockfd, &fin_ack, sizeof(fin_ack), 0, (struct sockaddr*)&clientaddr, clientlen); 
       if (n < 0)
-        error("ERROR in sendto"); 
-      sleep(1); // sleep for 2*RTO
-
-      printf("finished sleep\n"); 
+        error("ERROR in sendto");  
 
       // see if client sent over anything
       fd_set readfds; 
       FD_ZERO(&readfds); 
       FD_SET(sockfd, &readfds); 
-      n = select(sockfd + 1, &readfds, NULL, NULL, &timeout); 
+      n = select(sockfd + 1, &readfds, NULL, NULL, &timewait); 
       if (n == 0)
       {
-        printf("close socket\n");
-        fin_wait2 = 0;
-        printf("fin wait 2 = %d\n", fin_wait2); 
+        printf("Connection finished\n"); 
+        fin_wait2 = 0; 
       }
     }
    }
-   printf("exit fin while\n"); 
   }
 }
 

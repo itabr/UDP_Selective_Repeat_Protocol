@@ -137,7 +137,7 @@ int main(int argc, char **argv) {
                 }
             }
             else if(received_packet.packet_num > expected_packet && received_packet.flag != 3){
-                if (find(expected_packet) == NULL)
+                if (find(received_packet.packet_num) == NULL)
                     insertFirst(received_packet.packet_num,received_packet);
 
                 struct node *temp = find(expected_packet);
@@ -151,7 +151,7 @@ int main(int argc, char **argv) {
                     temp = find(expected_packet);
                 }
             }
-            if (received_packet.packet_num == expected_packet && received_packet.flag == 3) { // received FIN from server
+            if (received_packet.flag == 3) { // received FIN from server
                 // send ACK to server
                 int received_FIN = 1; 
                 printf("Received server FIN packet %d\n", received_packet.packet_num); 
@@ -172,11 +172,14 @@ int main(int argc, char **argv) {
                     
                     if (n > 0)
                     {
+			n = recvfrom(sockfd, &received_packet, sizeof(received_packet), 0, &serveraddr, &serverlen); 
+			if (received_packet.flag == 3) {
                         printf("Retransmit ACK\n"); 
                         time_sent_ack = get_timestamp();  
                         n = sendto(sockfd, &ack, sizeof(ack), 0, &serveraddr, serverlen);
                         if (n < 0) 
                           error("ERROR in sendto");
+			}
                     }
                     
                     else if (n == 0 && get_timestamp() - time_sent_ack > 500000) // server received ACK successfully
@@ -213,38 +216,19 @@ int main(int argc, char **argv) {
                                     complete = 1; 
                                 }
                             }
+			    else if (n == 0 && get_timestamp() - fin.timestamp > 500000)
+			    {
+				printf("Retransmit client FIN\n"); 
+				fin.timestamp = get_timestamp();
+				n = sendto(sockfd, &fin, sizeof(fin), 0, &serveraddr, serverlen);
+				if (n < 0)
+				    error("ERROR in sendto");
+			    }
                         }
                     }
                     //else if (n > 0) // server retransmitted the FIN 
                         //break; 
                 }
-/*
-                // server received FIN-ACK, now send FIN
-                if (!received_FIN)
-                {
-                    struct packet fin = {1024, (received_packet.packet_num + 1) % 30, received_packet.packet_num + 1, 0, NULL, 3, get_timestamp()}; // flag = 3 denotes FIN
-                    n = sendto(sockfd, &fin, sizeof(fin), 0, &serveraddr, serverlen); 
-                    if (n < 0)
-                        error("ERROR in sendto"); 
-
-                    fd_set readfds;
-                    FD_ZERO(&readfds);
-                    FD_SET(sockfd, &readfds);
-
-                    n = select(sockfd + 1, &readfds, NULL, NULL, &timeout);
-                    while (n == 0)
-                    {
-                        printf("Retransmit FIN\n");
-                        n = sendto(sockfd, &ack, sizeof(ack), 0, &serveraddr, serverlen); 
-                        if (n < 0) 
-                          error("ERROR in sendto");
-                        fd_set readfds;
-                        FD_ZERO(&readfds);
-                        FD_SET(sockfd, &readfds); 
-                        n = select(sockfd + 1, &readfds, NULL, NULL, &timeout); 
-                    } 
-                }
-*/
 
             }
             /*
