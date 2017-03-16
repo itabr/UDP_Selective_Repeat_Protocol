@@ -118,8 +118,12 @@ int main(int argc, char **argv) {
   while (1) {
 
     bzero(buf, BUFSIZE);
-    n = recvfrom(sockfd, buf, BUFSIZE, 0,
-		 (struct sockaddr *) &clientaddr, &clientlen);
+
+    struct packet file_name_packet = {0,0,0,0,0,0,0,0};
+
+    n = recvfrom(sockfd, &file_name_packet, BUFSIZE, 0,(struct sockaddr *) &clientaddr, &clientlen);
+
+
     if (n < 0)
       error("ERROR in recvfrom");
 
@@ -147,9 +151,10 @@ int main(int argc, char **argv) {
     printf("starting seq num = %d\n", seq_num);  
 
     //printf("Receiving packet %d")
+    char *filename = file_name_packet.data;
 
-
-    fp = fopen(buf, "rb");
+    printf("%s\n",filename);
+    fp = fopen(filename, "rb");
 
     if (fp == NULL){
       struct packet not_found = {1024, -1, -1, -1, "File not found", 0, 0}; 
@@ -159,10 +164,13 @@ int main(int argc, char **argv) {
 
     // get size of the file so we know how much to read 
    struct stat stats; 
-   stat(buf, &stats); 
+   stat(filename, &stats);
+   
    int file_size = stats.st_size; 
 
-   int num_packets = ceil((double)file_size / DATASIZE);  
+   int num_packets = ceil((double)file_size / DATASIZE);
+
+   printf("nummmmmmmmmmeeeeeeeedddd %d\n", num_packets);
 
    struct packet* packets = malloc(num_packets * sizeof(struct packet)); 
 

@@ -85,9 +85,17 @@ int main(int argc, char **argv) {
     strcpy(buf, filename); 
 
     /* send the filename to the server */
+
+    struct packet file_name_packet = {1024,0,0,0,0,0,0,0};
+    strcpy(file_name_packet.data,filename);
+    file_name_packet.size = strlen(filename);
+
+
     serverlen = sizeof(serveraddr); 
     long double time_sent = get_timestamp(); 
-    n = sendto(sockfd, buf, strlen(buf), 0, &serveraddr, serverlen);
+
+    n = sendto(sockfd, &file_name_packet, sizeof(file_name_packet), 0, &serveraddr, serverlen);
+
     if (n < 0) 
       error("ERROR in sendto");
 
