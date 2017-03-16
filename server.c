@@ -23,6 +23,7 @@
 /*
  * error - wrapper for perror
  */
+
 void error(char *msg) {
   perror(msg);
   exit(1);
@@ -162,16 +163,21 @@ int main(int argc, char **argv) {
    struct timeval timeout;
    timeout.tv_sec = 0;
    timeout.tv_usec = 500000;
-   
+
+   int temp = file_size;
+
    while (!feof(fp)) 
    {
       struct packet pack = {1024, packet_num % 30, packet_num, calc_checksum(data), data, 0, 0}; 
       size_t read_length = fread(pack.data, sizeof(char), DATASIZE, fp); 
       pack.cs = calc_checksum(pack.data); 
 
+      pack.size = temp;
+      temp = temp - DATASIZE;
+
       if (read_length == 0)
       {
-        error("Could not read file.\n\n"); 
+        error("Could not read file.\n"); 
       }  
 
       *(packets + packet_num) = pack; 

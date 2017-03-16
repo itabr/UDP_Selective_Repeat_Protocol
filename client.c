@@ -14,6 +14,13 @@
 
 #define BUFSIZE 1024
 
+#define MAX( a, b ) ( ( a > b) ? a : b ) 
+inline int max ( int a, int b ) { return a > b ? a : b; }
+
+#define MIN( a, b ) ( ( a < b) ? a : b ) 
+inline int min ( int a, int b ) { return a < b ? a : b; }
+
+
 /* 
  * error - wrapper for perror
  */
@@ -117,20 +124,28 @@ int main(int argc, char **argv) {
     int expected_packet = 0;
     int complete = 0; 
 
+    int size = 0;
+
     while (!complete)
     {   
         n = recvfrom(sockfd, &received_packet, sizeof(received_packet), 0, &serveraddr, &serverlen); 
         if (n < 0) 
           error("ERROR in recvfrom");
-        else if (n > 0) 
+        else if (n > 0)
         {
     	    if (received_packet.packet_num == expected_packet && received_packet.flag != 3){
-                fwrite(received_packet.data , sizeof(char) , sizeof(received_packet.data) , fp );
-                expected_packet = expected_packet +1;
+
+                size = sizeof(received_packet.data);
+                fwrite(received_packet.data , sizeof(char) , MIN(size,received_packet.size) , fp );
+
+                expected_packet = expected_packet + 1;
 		        struct node *temp = find(expected_packet);
 
                 while(temp){
-                    fwrite(temp->new_packet.data , sizeof(char) , sizeof(temp->new_packet.data) , fp );
+
+                    size = sizeof(temp->new_packet.data);
+                    fwrite(temp->new_packet.data , sizeof(char) , MIN(size,temp->new_packet.size), fp );
+
                     delete(temp->key);
                     expected_packet = expected_packet + 1;
                     temp = find(expected_packet);
@@ -143,7 +158,9 @@ int main(int argc, char **argv) {
                 struct node *temp = find(expected_packet);
 
                 while(temp){
-                    fwrite(temp->new_packet.data , sizeof(char) , sizeof(temp->new_packet.data) , fp );
+
+                    size = sizeof(temp->new_packet.data);
+                    fwrite(temp->new_packet.data , sizeof(char) , MIN(size,temp->new_packet.size) , fp );
 
                     delete(temp->key);
 
@@ -231,18 +248,7 @@ int main(int argc, char **argv) {
                 }
 
             }
-            /*
-		    struct node *temp = find(expected_packet);
 
-                while(temp){
-                    fwrite(temp->new_packet.data , sizeof(char) , sizeof(temp->new_packet.data) , fp );
-
-                    delete(temp->key);
-
-                    expected_packet = expected_packet + 1;
-                    temp = find(expected_packet);
-                }
-            */
             if (!complete)
             {
                 printf("Receiving packet %d, flag %d\n", received_packet.packet_num, received_packet.flag); 
@@ -260,7 +266,6 @@ int main(int argc, char **argv) {
         }
         printList();
     }
-
 
     return 0;
 }
