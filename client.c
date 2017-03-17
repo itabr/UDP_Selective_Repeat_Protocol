@@ -13,6 +13,7 @@
 #include "linked_list.h"
 
 #define BUFSIZE 1024
+#define HEADERLENGTH 32
 
 #define MAX( a, b ) ( ( a > b) ? a : b ) 
 inline int max ( int a, int b ) { return a > b ? a : b; }
@@ -88,7 +89,7 @@ int main(int argc, char **argv) {
 
 	/* send the filename to the server */
 
-	struct packet file_name_packet = {1024,0,0,0,0,0,0,0};
+	struct packet file_name_packet = {HEADERLENGTH + strlen(filename),0,0,0,0,0,0,0};
 	strcpy(file_name_packet.data,filename);
 	file_name_packet.size = strlen(filename);
 
@@ -98,12 +99,14 @@ int main(int argc, char **argv) {
 
 	/* handshake */
 
-	struct packet starter = {1024,0,0,0,0,0,0,0};
+	struct packet starter = {HEADERLENGTH,0,0,0,0,0,0,0};
 	starter.flag = 5;
     starter.timestamp = get_timestamp();
+    printf("Sending packet SYN\n"); 
     n = sendto(sockfd, &starter, sizeof(starter), 0, &serveraddr, serverlen);
 
     int established = 1;
+    int last_received_seq = 0; 
 
     while(established){
         struct timeval timeout;
@@ -116,11 +119,14 @@ int main(int argc, char **argv) {
         n = select(sockfd + 1, &readfds, NULL, NULL, &timeout); 
         
         if(n == 0 && get_timestamp() - time_sent > 500000){
+            printf("Sending packet Retransmission SYN\n");
             n = sendto(sockfd, &starter, sizeof(starter), 0, &serveraddr, serverlen);
         }
-        else if(n>0){
+        else if(n > 0){
             n = recvfrom(sockfd, &starter, sizeof(starter), 0, &serveraddr, &serverlen); 
+            printf("Receiving packet %d\n", starter.seq_num); 
             if(starter.flag == 6){
+                last_received_seq = starter.seq_num + HEADERLENGTH; 
                 established = 0;
             }
         }
@@ -128,6 +134,8 @@ int main(int argc, char **argv) {
 
 	/* send the filename to the server */
 
+    file_name_packet.seq_num = last_received_seq; 
+    printf("Sending packet %d\n", last_received_seq); 
 	n = sendto(sockfd, &file_name_packet, sizeof(file_name_packet), 0, &serveraddr, serverlen);
 
 	if (n < 0) 
@@ -149,19 +157,23 @@ int main(int argc, char **argv) {
 		n = select(sockfd + 1, &readfds, NULL, NULL, &timeout); 
 		if (n == 0 && get_timestamp() - time_sent > 500000)
 		{
-			printf("Retransmit file name\n"); 
+            printf("Sending packet %d Retransmission\n", last_received_seq); 
 			time_sent = get_timestamp(); 
 			n = sendto(sockfd, buf, strlen(buf), 0, &serveraddr, serverlen);
 			if (n < 0) 
 				error("ERROR in sendto");
-			else if (n == 0)
-			{
-				printf("socket closed\n"); 
-				close(sockfd); 
-			}
 		}
 		else if (n > 0)
-			filename_received = 1; 
+        {
+            n = recvfrom(sockfd, &received_packet, sizeof(received_packet), 0, &serveraddr, &serverlen); 
+            if (strcmp(received_packet.data, "File not found") == 0)
+            {
+                printf("Requested file not found.\n"); 
+                exit(-1);
+            }
+            else if (strcmp(received_packet.data, "File received") == 0)
+			 filename_received = 1; 
+        }
 	}
 
 	FILE *fp;
@@ -172,6 +184,7 @@ int main(int argc, char **argv) {
 	int complete = 0; 
 
 	int size = 0;
+    last_received_seq = 0;
 
 	while (!complete)
 	{   
@@ -180,8 +193,6 @@ int main(int argc, char **argv) {
 			error("ERROR in recvfrom");
 		else if (n > 0)
 		{
-			if (strcmp(received_packet.data, "File not found") == 0)
-				exit(-1); 
 			if (received_packet.packet_num == expected_packet && received_packet.flag != 3){
 
 				size = sizeof(received_packet.data);
@@ -220,14 +231,17 @@ int main(int argc, char **argv) {
 			if (received_packet.flag == 3) { // received FIN from server
 				// send ACK to server
 				int received_FIN = 1; 
-				printf("Received server FIN packet %d\n", received_packet.packet_num); 
+
+                printf("Receiving packet %d FIN\n", received_packet.seq_num);   
 
 				int ack = received_packet.packet_num;  
-				printf("Sending client FIN-ACK packet %d\n", ack); 
+                printf("Sending client FIN-ACK packet %d\n", received_packet.seq_num);
 				long double time_sent_ack = get_timestamp(); 
 				n = sendto(sockfd, &ack, sizeof(ack), 0, &serveraddr, serverlen); 
 				if (n < 0)
 					error("ERROR in sendto"); 
+
+                last_received_seq = received_packet.seq_num; 
 
 				while (received_FIN)
 				{
@@ -239,8 +253,9 @@ int main(int argc, char **argv) {
 					if (n > 0)
 					{
 						n = recvfrom(sockfd, &received_packet, sizeof(received_packet), 0, &serveraddr, &serverlen); 
-						if (received_packet.flag == 3) {
-							printf("Retransmit ACK\n"); 
+						if (received_packet.flag == 3) { 
+                            last_received_seq = received_packet.seq_num;
+                            printf("Sending packet %d Retransmission FIN\n", received_packet.seq_num); 
 							time_sent_ack = get_timestamp();  
 							n = sendto(sockfd, &ack, sizeof(ack), 0, &serveraddr, serverlen);
 							if (n < 0) 
@@ -254,9 +269,13 @@ int main(int argc, char **argv) {
 						received_FIN = 0;
 						int received_ACK = 0; 
 
-						struct packet fin = {1024, (received_packet.packet_num + 1) % 30, received_packet.packet_num + 1, 0, NULL, 3, get_timestamp()}; // flag = 3 denotes FIN
+						struct packet fin = {HEADERLENGTH, (received_packet.packet_num + 1) % 30, received_packet.packet_num + 1, 0, NULL, 3, get_timestamp()}; // flag = 3 denotes FIN
 						fin.flag = 3; 
-						printf("Sending client FIN\n"); 
+                        fin.seq_num = last_received_seq + HEADERLENGTH;
+                        if (fin.seq_num > 30720)
+                            fin.seq_num -= 30720; 
+
+                        printf("Sending packet %d Client FIN\n", fin.seq_num);
 						n = sendto(sockfd, &fin, sizeof(fin), 0, &serveraddr, serverlen); 
 						if (n < 0)
 							error("ERROR in sendto");
@@ -275,7 +294,7 @@ int main(int argc, char **argv) {
 									error("ERROR in recvfrom"); 
 								if (final_ack.packet_num == expected_packet + 1) 
 								{
-									printf("Received server FIN-ACK\n"); 
+                                    printf("Receiving packet %d (server FIN-ACK)\n\n\n", fin.seq_num); 
 									fclose(fp); 
 									close(sockfd); 
 									received_ACK = 1; 
@@ -284,7 +303,7 @@ int main(int argc, char **argv) {
 							}
 							else if (n == 0 && get_timestamp() - fin.timestamp > 500000)
 							{
-								printf("Retransmit client FIN\n"); 
+                                printf("Sending packet %d Retransmission Client FIN\n", fin.seq_num);  
 								fin.timestamp = get_timestamp();
 								n = sendto(sockfd, &fin, sizeof(fin), 0, &serveraddr, serverlen);
 								if (n < 0)
@@ -292,28 +311,23 @@ int main(int argc, char **argv) {
 							}
 						}
 					}
-					//else if (n > 0) // server retransmitted the FIN 
-					//break; 
 				}
 
 			}
 
 			if (!complete)
 			{
-				printf("Receiving packet %d, flag %d\n", received_packet.packet_num, received_packet.flag); 
-				printf("packet nummmmm %d\n", expected_packet);
+                printf("Receiving packet %d\n", received_packet.seq_num); 
 
 				int ack_num = received_packet.packet_num;
 				printf("ack num = %d\n", ack_num); 
 
-				printf("time stamp = %Lf\n", received_packet.timestamp); 
+                printf("Sending packet %d\n", received_packet.seq_num); 
 				n = sendto(sockfd, &ack_num, sizeof(ack_num), 0, &serveraddr, serverlen); 
 				if (n < 0)
 					error("ERROR in sendto"); 
-				printf("Sending ACK #%d\n", received_packet.packet_num); 
 			}
 		}
-		printList();
 	}
 
 	return 0;
