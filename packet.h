@@ -11,7 +11,7 @@ struct packet
   int packet_num;
   int cs;
   char data[DATA_SIZE];
-  int flag; // 0 = haven't sent, 1 = sent + waiting for ACK, 2 = received ACK, 3 = FIN, 4 = FIN-ACK
+  int flag; // 0 = haven't sent, 1 = sent + waiting for ACK, 2 = received ACK, 3 = FIN, 4 = FIN-ACK 5 = SYN 6 = SYN-ACK
   long double timestamp;
   int size;
   
