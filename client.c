@@ -40,9 +40,7 @@ long double get_timestamp()
 	{
 		timestamp_usec = ((long double)timer_usec.tv_sec) * 100000011 
 			+ (long double) timer_usec.tv_usec; 
-	}
-
-	//printf("timestamp = %lld microseconds\n", timestamp_usec); 
+	} 
 	return timestamp_usec; 
 }
 
@@ -232,10 +230,10 @@ int main(int argc, char **argv) {
 				// send ACK to server
 				int received_FIN = 1; 
 
-				printf("Receiving packet %d FIN\n", received_packet.seq_num);   
+				printf("Receiving packet %d\n", received_packet.seq_num);   
 
 				int ack = received_packet.packet_num;  
-				printf("Sending client FIN-ACK packet %d\n", received_packet.seq_num);
+				printf("Sending packet %d\n", received_packet.seq_num);
 				long double time_sent_ack = get_timestamp(); 
 				n = sendto(sockfd, &ack, sizeof(ack), 0, &serveraddr, serverlen); 
 				if (n < 0)
@@ -275,7 +273,7 @@ int main(int argc, char **argv) {
 						if (fin.seq_num > 30720)
 							fin.seq_num -= 30720; 
 
-						printf("Sending packet %d Client FIN\n", fin.seq_num);
+						printf("Sending packet %d FIN\n", fin.seq_num);
 						n = sendto(sockfd, &fin, sizeof(fin), 0, &serveraddr, serverlen); 
 						if (n < 0)
 							error("ERROR in sendto");
@@ -294,7 +292,7 @@ int main(int argc, char **argv) {
 									error("ERROR in recvfrom"); 
 								if (final_ack.packet_num == expected_packet + 1) 
 								{
-									printf("Receiving packet %d (server FIN-ACK)\n\n\n", fin.seq_num); 
+									printf("Receiving packet %d\n\n", fin.seq_num); 
 									fclose(fp); 
 									close(sockfd); 
 									received_ACK = 1; 
@@ -303,7 +301,7 @@ int main(int argc, char **argv) {
 							}
 							else if (n == 0 && get_timestamp() - fin.timestamp > 500000)
 							{
-								printf("Sending packet %d Retransmission Client FIN\n", fin.seq_num);  
+								printf("Sending packet %d Retransmission FIN\n", fin.seq_num);  
 								fin.timestamp = get_timestamp();
 								n = sendto(sockfd, &fin, sizeof(fin), 0, &serveraddr, serverlen);
 								if (n < 0)
@@ -320,7 +318,6 @@ int main(int argc, char **argv) {
 				printf("Receiving packet %d\n", received_packet.seq_num); 
 
 				int ack_num = received_packet.packet_num;
-				printf("ack num = %d\n", ack_num); 
 
 				printf("Sending packet %d\n", received_packet.seq_num); 
 				n = sendto(sockfd, &ack_num, sizeof(ack_num), 0, &serveraddr, serverlen); 

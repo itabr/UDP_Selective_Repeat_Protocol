@@ -144,7 +144,6 @@ int main(int argc, char **argv) {
 			file_name_packet.flag = 6;  
 			/* choose a random start # between 0 and 30720 for the sequence # */
 			seq_num = rand() % 30720; 
-			printf("starting seq num = %d\n", seq_num); 
 			file_name_packet.seq_num = seq_num; 
 			printf("Sending packet %d 5120 SYN\n", file_name_packet.seq_num); 
 			n = sendto(sockfd, &file_name_packet, sizeof(file_name_packet), 0, (struct sockaddr*)&clientaddr, clientlen); 
@@ -249,9 +248,7 @@ int main(int argc, char **argv) {
 					n = select(sockfd + 1, &readfds, NULL, NULL, &timeout); 
 					if (n > 0)
 					{ 
-						printf("received data\n"); 
 						int k = recvfrom(sockfd, &ack_num, sizeof(ack_num), 0, (struct sockaddr*)&clientaddr, &clientlen); 
-						printf("Server received ack num = %d\n", ack_num); 
 						printf("Receiving packet %d\n", packets[ack_num].seq_num);
 
 						if (ack_num < next_packet_num)
@@ -269,7 +266,6 @@ int main(int argc, char **argv) {
 					}
 					else if (n == 0)
 					{
-						printf("no data received\n"); 
 						int i;
 						for (i = window_start; i < window_start + window_size; i++)
 						{
