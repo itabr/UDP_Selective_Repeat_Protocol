@@ -26,3 +26,11 @@ $ sudo qdisc add dev lo root netem loss 10% -> sets up a network emulation with 
 $ sudo tc qdisc del dev lo root
 
 $ sudo qdisc add dev lo root netem unorder gap 5 delay 100ms loss 10%  -> sets up a network emulation with 10% loss w 100ms delay
+
+To create test files use:
+
+$ echo "abc">> fsyn
+
+$ cat /dev/urandom | head -c 1000000 > fsmall
+
+$ cat /dev/urandom | head -c 100000000 > flarge
