@@ -1,6 +1,7 @@
-samir tabriz / stephanie lam
+Samir Tabriz / Stephanie Lam
 
 Usage for server : ./server <port>
+
 Usage for client : ./client <hostname> <port> <filename>
 
 The purpose of this project is to use UDP Socket and C programming language to implement a
